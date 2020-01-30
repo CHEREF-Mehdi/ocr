@@ -14,7 +14,7 @@ num_classes = 10
 
 # input image dimensions 
 img_width, img_height = 28, 28
-epochs = 50
+epochs = 20
 batch_size = 80
 
 
@@ -24,10 +24,11 @@ def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
     model.add(Conv2D(filters, kernel_size, padding='valid', input_shape=input_shape))
     model.add(Activation('relu'))
     
-    model.add(Conv2D(filters, kernel_size))
+    model.add(Conv2D(filters, kernel_size, padding='valid'))
     model.add(Activation('relu'))    
     model.add(MaxPooling2D(pool_size=pool_size))
     model.add(Dropout(0.25))
+    
     
     model.add(Flatten())    
     
@@ -39,7 +40,7 @@ def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
     model.add(Dense(num_classes))
     model.add(Activation('softmax'))
 
-    model.compile(loss='categorical_crossentropy',optimizer='adadelta',metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
     
     return model
 
@@ -50,32 +51,30 @@ if K.image_data_format() == 'channels_first':
 else:
     input_shape = (img_width, img_height, 1)
 
-train_datagen = ImageDataGenerator(rescale=1. / 255)
-valid_datagen = ImageDataGenerator(rescale=1. / 255)
-test_datagen = ImageDataGenerator(rescale=1. / 255)
+datagen = ImageDataGenerator(rescale=1. / 255)
 
-train_generator = train_datagen.flow_from_directory(
+train_generator = datagen.flow_from_directory(
     train_data_dir,
     target_size=(img_width, img_height),
     batch_size=batch_size,
     color_mode="grayscale",
     class_mode='categorical')
 
-valid_generator = valid_datagen.flow_from_directory(
+valid_generator = datagen.flow_from_directory(
     validation_data_dir,
     target_size=(img_width, img_height),
     batch_size=batch_size,
     color_mode="grayscale",
     class_mode='categorical')
 
-test_generator = test_datagen.flow_from_directory(
+test_generator = datagen.flow_from_directory(
     validation_data_dir,
     target_size=(img_width, img_height),
     batch_size=batch_size,
     color_mode="grayscale",
     class_mode='categorical')
 
-model=make_model([64, 64],8,3,2)
+model=make_model([64],28,(5,5),2)
 
 STEP_SIZE_TRAIN=train_generator.n//train_generator.batch_size
 STEP_SIZE_VALID=valid_generator.n//valid_generator.batch_size
@@ -87,8 +86,9 @@ model.fit_generator(
     validation_data=valid_generator,
     validation_steps=STEP_SIZE_VALID)
 
-
+print("Validation :")
 print(model.evaluate_generator(generator=valid_generator,steps=STEP_SIZE_VALID))
+print("Test :")
 print(model.evaluate_generator(generator=test_generator,steps=STEP_SIZE_VALID))
 
 STEP_SIZE_TEST=test_generator.n//test_generator.batch_size
@@ -104,7 +104,7 @@ labels = dict((v,k) for k,v in labels.items())
 predictions = np.asarray([labels[k] for k in predicted_class_indices])
 
 pd.DataFrame(predictions).to_csv("results.csv", header=None, index=None)
-#np.savetxt("results.csv", predictions, delimiter=",")
+
 
 
 
